@@ -1,0 +1,68 @@
+pipeline {
+    agent {
+        docker {
+            image 'mcr.microsoft.com/playwright/java:v1.57.0-jammy'
+            args '-u root:root'
+        }
+    }
+
+    tools {
+      'org.jenkinsci.plugins.docker.commons.tools.DockerTool' 'docker'
+    }
+
+    environment {
+        MAVEN_OPTS = "-Dmaven.repo.local=.m2/repository"
+        docker.withTool('docker'){
+            docker.withRegistry('repo','credentials') {
+                <rest of the pipeline here>
+            }
+        }
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                checkout([
+                    $class: 'GitSCM',
+                    branches: [[name: '*/main']],
+                    userRemoteConfigs: [[
+                        url: 'https://github.com/joheiss/playwright-java-cucumber.git'
+                    ]]
+                ])
+            }
+        }
+
+        stage('Run Playwright Tests') {
+            steps {
+                sh '''
+                    mvn -v
+                    clean compile test \
+                      -Dcucumber.filter.tags="(@${tag} and (not @ignore))" -Ddataproviderthreadcount=${threadCount} -DbrowserType="${browserType}"
+                '''
+            }
+        }
+
+        stage('Publish Results') {
+            steps {
+                junit allowEmptyResults: true, testResults: 'target/surefire-reports/*.xml'
+                cucumber(
+                    buildStatus: 'UNSTABLE',
+                    fileIncludePattern: '**/cucumber*.json'
+                )
+            }
+        }
+    }
+
+    post {
+        always {
+            archiveArtifacts artifacts: 'target/**', fingerprint: true
+        }
+        failure {
+            echo '❌ Tests failed'
+        }
+        success {
+            echo '✅ Tests passed'
+        }
+    }
+}
