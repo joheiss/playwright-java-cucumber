@@ -88,7 +88,7 @@ public class BrowserManager {
     private Browser getBrowser() {
         try {
             var browserType = properties.getProperty("browser", "chromium");
-            var headless = Boolean.parseBoolean(properties.getProperty("headless", "true"));
+            var headless = Boolean.parseBoolean(properties.getProperty("headless", "false"));
             return switch (browserType.toLowerCase().trim()) {
                 case "chrome" -> playwright.get().chromium().launch(new BrowserType.LaunchOptions().setHeadless(headless));
                 case "firefox" -> playwright.get().firefox().launch(new BrowserType.LaunchOptions().setHeadless(headless));
